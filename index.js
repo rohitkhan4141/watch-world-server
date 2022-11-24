@@ -35,7 +35,10 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // collections
-    const usersCollection = client.db("test").collection("users");
+    const usersCollection = client.db("watchsWorld").collection("users");
+    const categoriesCollection = client
+      .db("watchsWorld")
+      .collection("categories");
 
     // creating a jwt token route
 
@@ -55,6 +58,14 @@ async function run() {
         accessToken: "",
         message: "Forbidden User",
       });
+    });
+
+    // categories route
+
+    app.get("/categories", async (req, res) => {
+      const query = {};
+      const result = await categoriesCollection.find(query).toArray();
+      res.send(result);
     });
 
     // users route
