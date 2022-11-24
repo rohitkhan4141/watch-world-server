@@ -58,13 +58,18 @@ async function run() {
     });
 
     // users route
-    app.post("/users", async (req, res) => {
+    app.put("/users", async (req, res) => {
       const getDataFromReq = req.body;
-      const newUser = {
-        email: getDataFromReq.email,
-        name: getDataFromReq.name,
+      const query = { email: getDataFromReq.email };
+      const options = { upsert: true };
+      const updateDoc = {
+        $set: {
+          email: getDataFromReq.email,
+          name: getDataFromReq?.name,
+          role: getDataFromReq?.role,
+        },
       };
-      const result = await usersCollection.insertOne(newUser);
+      const result = await usersCollection.updateOne(query, updateDoc, options);
       res.send(result);
     });
   } finally {
