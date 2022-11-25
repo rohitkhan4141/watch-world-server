@@ -85,6 +85,13 @@ async function run() {
 
     // booking watch route
 
+    app.get("/mybookings", async (req, res) => {
+      const email = req.query.email;
+      const query = { email: email };
+      const result = await myBookedWatchesCollection.find(query).toArray();
+      res.send(result);
+    });
+
     app.post("/mybookings", async (req, res) => {
       const myWathesBookings = req.body;
       const query = { watchName: myWathesBookings?.watchName };
@@ -100,6 +107,24 @@ async function run() {
     });
 
     // users route
+
+    // admin varified routes
+    app.get("/allbuyers", async (req, res) => {
+      const query = {
+        role: "buyer",
+      };
+      const result = await usersCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    app.get("/allsellers", async (req, res) => {
+      const query = {
+        role: "seller",
+      };
+      const result = await usersCollection.find(query).toArray();
+      res.send(result);
+    });
+
     app.put("/users", async (req, res) => {
       const getDataFromReq = req.body;
       const query = { email: getDataFromReq.email };
