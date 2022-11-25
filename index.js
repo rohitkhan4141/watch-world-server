@@ -39,6 +39,11 @@ async function run() {
     const categoriesCollection = client
       .db("watchsWorld")
       .collection("categories");
+    const watchesCollection = client.db("watchsWorld").collection("watches");
+
+    const myBookedWatchesCollection = client
+      .db("watchsWorld")
+      .collection("myBookedWatches");
 
     // creating a jwt token route
 
@@ -65,6 +70,32 @@ async function run() {
     app.get("/categories", async (req, res) => {
       const query = {};
       const result = await categoriesCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    // categorie based wathes route
+
+    app.get("/categories/:name", async (req, res) => {
+      const query = {
+        categorieName: req.params.name,
+      };
+      const result = await watchesCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    // booking watch route
+
+    app.post("/mybookings", async (req, res) => {
+      const myWathesBookings = req.body;
+      const query = { watchName: myWathesBookings?.watchName };
+      const isExisted = await myBookedWatchesCollection.findOne(query);
+
+      if (isExisted) {
+        return res.send({ message: "Alredy Booked" });
+      }
+      const result = await myBookedWatchesCollection.insertOne(
+        myWathesBookings
+      );
       res.send(result);
     });
 
