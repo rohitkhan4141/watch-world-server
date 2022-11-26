@@ -135,6 +135,7 @@ async function run() {
       );
       res.send(result);
     });
+
     // sellers routes
 
     app.post("/products", async (req, res) => {
@@ -175,6 +176,29 @@ async function run() {
       };
       const result = await usersCollection.updateOne(query, updateDoc, options);
       res.send(result);
+    });
+
+    // check if the user is admin or not
+
+    app.get("/users/admin/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email };
+      const user = await usersCollection.findOne(query);
+      res.send({ isAdmin: user?.isAdmin });
+    });
+
+    // check if the user is seller or not
+
+    app.get("/users/seller/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email };
+      const user = await usersCollection.findOne(query);
+      if (user?.role === "seller") {
+        console.log("ekhane if r vitor");
+        return res.send({ isSeller: true });
+      } else {
+        return res.send({ isSeller: false });
+      }
     });
 
     // payment
