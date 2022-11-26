@@ -2,6 +2,13 @@ const express = require("express");
 const cors = require("cors");
 const { MongoClient, ServerApiVersion } = require("mongodb");
 const port = process.env.PORT || 5000;
+// const stripe = require("stripe")(process.env.STRIPE_SECRET);
+
+const Stripe = require("stripe");
+const stripe = Stripe(
+  "sk_test_51M8A9vB7GM64ljvN9XSkn7o9xILsfheA7zfUzTKez9Mlxpbz5Ui0KJkbYuXTzTcAywZeIwwJ3KRSVjDHY017OJiq00d6r6TuU2"
+);
+
 require("dotenv").config();
 const jwt = require("jsonwebtoken");
 const app = express();
@@ -45,6 +52,28 @@ async function run() {
       .db("watchsWorld")
       .collection("myBookedWatches");
 
+    //verify admin
+    const verifyAdmin = async (req, res, next) => {
+      const decodedEmail = req.decoded.email;
+      const query = { email: decodedEmail };
+      const user = await usersCollection.findOne(query);
+      if (user?.isAdmin !== true) {
+        return res.status(403).send({ message: "Forbidden access" });
+      }
+      next();
+    };
+
+    // verify seller
+    const verifySeller = async (req, res, next) => {
+      const decodedEmail = req.decoded.email;
+      const query = { email: decodedEmail };
+      const user = await usersCollection.findOne(query);
+      if (user?.role !== "seller") {
+        return res.status(403).send({ message: "Forbidden access" });
+      }
+      next();
+    };
+
     // creating a jwt token route
 
     app.get("/jwt", async (req, res) => {
@@ -52,9 +81,7 @@ async function run() {
       const query = { email: email };
       const isAlreadyExisted = await usersCollection.findOne(query);
       if (isAlreadyExisted) {
-        const token = jwt.sign({ email: email }, process.env.ACCESS_SECRET, {
-          expiresIn: "10h",
-        });
+        const token = jwt.sign({ email: email }, process.env.ACCESS_SECRET);
         return res.status(200).send({
           accessToken: token,
         });
@@ -75,7 +102,7 @@ async function run() {
 
     // categorie based wathes route
 
-    app.get("/categories/:name", async (req, res) => {
+    app.get("/categories/:name", verifyJwt, async (req, res) => {
       const query = {
         categorieName: req.params.name,
       };
@@ -85,7 +112,7 @@ async function run() {
 
     // booking watch route
 
-    app.get("/mybookings", async (req, res) => {
+    app.get("/mybookings", verifyJwt, async (req, res) => {
       const email = req.query.email;
       const query = { email: email };
       const result = await myBookedWatchesCollection.find(query).toArray();
@@ -94,7 +121,10 @@ async function run() {
 
     app.post("/mybookings", async (req, res) => {
       const myWathesBookings = req.body;
-      const query = { watchName: myWathesBookings?.watchName };
+      const query = {
+        watchName: myWathesBookings?.watchName,
+        email: myWathesBookings?.email,
+      };
       const isExisted = await myBookedWatchesCollection.findOne(query);
 
       if (isExisted) {
@@ -103,6 +133,13 @@ async function run() {
       const result = await myBookedWatchesCollection.insertOne(
         myWathesBookings
       );
+      res.send(result);
+    });
+    // sellers routes
+
+    app.post("/products", async (req, res) => {
+      const product = req.body;
+      const result = await watchesCollection.insertOne(product);
       res.send(result);
     });
 
@@ -138,6 +175,23 @@ async function run() {
       };
       const result = await usersCollection.updateOne(query, updateDoc, options);
       res.send(result);
+    });
+
+    // payment
+
+    app.post("/create-payment-intent", async (req, res) => {
+      const price = req.body.price;
+      const amount = parseInt(price) * 100;
+      // Create a PaymentIntent with the order amount and currency
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: "usd",
+        payment_method_types: ["card"],
+      });
+
+      res.send({
+        clientSecret: paymentIntent.client_secret,
+      });
     });
   } finally {
   }
