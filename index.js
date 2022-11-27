@@ -1,6 +1,6 @@
 const express = require("express");
 const cors = require("cors");
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const port = process.env.PORT || 5000;
 // const stripe = require("stripe")(process.env.STRIPE_SECRET);
 
@@ -147,7 +147,7 @@ async function run() {
     // users route
 
     // admin varified routes
-    app.get("/allbuyers", async (req, res) => {
+    app.get("/allbuyers", verifyJwt, verifyAdmin, async (req, res) => {
       const query = {
         role: "buyer",
       };
@@ -155,11 +155,31 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/allsellers", async (req, res) => {
+    app.get("/allsellers", verifyJwt, verifyAdmin, async (req, res) => {
       const query = {
         role: "seller",
       };
       const result = await usersCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    app.delete("/users/:id", verifyJwt, verifyAdmin, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: ObjectId(id) };
+      const result = await usersCollection.deleteOne(query);
+      res.send(result);
+    });
+
+    app.put("/users/:id", verifyJwt, verifyAdmin, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: ObjectId(id) };
+      const options = { upsert: true };
+      const updateDoc = {
+        $set: {
+          isSellerVerified: true,
+        },
+      };
+      const result = await usersCollection.updateOne(query, updateDoc, options);
       res.send(result);
     });
 
