@@ -144,6 +144,44 @@ async function run() {
       res.send(result);
     });
 
+    // get a single user information
+
+    app.get("/watches/:id", verifyJwt, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: ObjectId(id) };
+      const result = await myBookedWatchesCollection.findOne(query);
+      if (result?.watchId) {
+        const filter = { _id: ObjectId(result?.watchId) };
+        const response = await watchesCollection.findOne(filter);
+        response.myBookingWatchId = id;
+        res.send(response);
+      }
+    });
+
+    app.put("/products/:id", verifyJwt, async (req, res) => {
+      const id = req.params.id;
+      const myBookingWatchId = req.body?.myBookingWatchId;
+      const query = { _id: ObjectId(id) };
+      const fileter = { _id: ObjectId(myBookingWatchId) };
+      const options = { upsert: true };
+      const updateDoc = {
+        $set: {
+          transactionId: req.body?.transactionId,
+        },
+      };
+      const addToMyOrdersCollection = await myBookedWatchesCollection.updateOne(
+        fileter,
+        updateDoc,
+        options
+      );
+      const result = await watchesCollection.updateOne(
+        query,
+        updateDoc,
+        options
+      );
+      res.send(result);
+    });
+
     // users route
 
     // admin varified routes
@@ -224,7 +262,7 @@ async function run() {
     // payment
 
     app.post("/create-payment-intent", async (req, res) => {
-      const price = req.body.price;
+      const price = req.body.resalePrice;
       const amount = parseInt(price) * 100;
       // Create a PaymentIntent with the order amount and currency
       const paymentIntent = await stripe.paymentIntents.create({
