@@ -52,6 +52,8 @@ async function run() {
       .db("watchsWorld")
       .collection("myBookedWatches");
 
+    const advertisedProduct = client.db("watchsWorld").collection("addProduct");
+
     //verify admin
     const verifyAdmin = async (req, res, next) => {
       const decodedEmail = req.decoded.email;
@@ -92,7 +94,7 @@ async function run() {
       });
     });
 
-    // categories route
+    // categories route and homepage route
 
     app.get("/categories", async (req, res) => {
       const query = {};
@@ -100,6 +102,20 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/advertisedproduct", async (req, res) => {
+      const query = {};
+      const result = await advertisedProduct.find(query).toArray();
+      res.send(result);
+    });
+
+    app.delete("/advertisedproduct/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: ObjectId(id) };
+      const filter = { _id: id };
+      const userResult = await watchesCollection.deleteOne(query);
+      const advertiseResult = await advertisedProduct.deleteOne(filter);
+      res.send(advertiseResult);
+    });
     // categorie based wathes route
 
     app.get("/categories/:name", verifyJwt, async (req, res) => {
@@ -138,11 +154,68 @@ async function run() {
 
     // sellers routes
 
-    app.post("/products", async (req, res) => {
+    app.post("/products", verifyJwt, verifySeller, async (req, res) => {
       const product = req.body;
       const result = await watchesCollection.insertOne(product);
       res.send(result);
     });
+
+    app.post(
+      "/products/advertise",
+      verifyJwt,
+      verifySeller,
+      async (req, res) => {
+        const product = req.body;
+        console.log(product);
+        const result = await advertisedProduct.insertOne(product);
+        res.send(result);
+      }
+    );
+
+    app.get("/products", verifyJwt, verifySeller, async (req, res) => {
+      const email = req.query.email;
+      const query = { sellerEmail: email };
+      const result = await watchesCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    app.put("/products/:id", verifyJwt, verifySeller, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: ObjectId(id) };
+      const options = { upsert: true };
+      const updateDoc = {
+        $set: {
+          advertise: true,
+        },
+      };
+      const result = await watchesCollection.updateOne(
+        query,
+        updateDoc,
+        options
+      );
+      res.send(result);
+    });
+
+    app.delete("/products/:id", verifyJwt, verifySeller, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: ObjectId(id) };
+      const result = await watchesCollection.deleteOne(query);
+      res.send(result);
+    });
+
+    // get seller by email;
+
+    app.get(
+      "/users/sellers/:email",
+      verifyJwt,
+      verifySeller,
+      async (req, res) => {
+        const email = req.params.email;
+        const query = { email };
+        const user = await usersCollection.findOne(query);
+        res.send(user);
+      }
+    );
 
     // get a single user information
 
@@ -158,7 +231,7 @@ async function run() {
       }
     });
 
-    app.put("/products/:id", verifyJwt, async (req, res) => {
+    app.put("/product/:id", verifyJwt, async (req, res) => {
       const id = req.params.id;
       const myBookingWatchId = req.body?.myBookingWatchId;
       const query = { _id: ObjectId(id) };
@@ -252,7 +325,6 @@ async function run() {
       const query = { email };
       const user = await usersCollection.findOne(query);
       if (user?.role === "seller") {
-        console.log("ekhane if r vitor");
         return res.send({ isSeller: true });
       } else {
         return res.send({ isSeller: false });
