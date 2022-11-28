@@ -54,6 +54,14 @@ async function run() {
 
     const advertisedProduct = client.db("watchsWorld").collection("addProduct");
 
+    const sellerCollection = client
+      .db("watchsWorld")
+      .collection("sellerProduct");
+
+    const productReportCollection = client
+      .db("watchsWorld")
+      .collection("product-report");
+
     //verify admin
     const verifyAdmin = async (req, res, next) => {
       const decodedEmail = req.decoded.email;
@@ -92,6 +100,36 @@ async function run() {
         accessToken: "",
         message: "Forbidden User",
       });
+    });
+
+    // report to admin
+
+    app.post("/report", verifyJwt, async (req, res) => {
+      const id = req.body._id;
+      const query = { _id: id };
+      const isExisted = await productReportCollection.findOne(query);
+      if (isExisted) {
+        return res.send({
+          message: "Already Reported",
+        });
+      }
+      const result = await productReportCollection.insertOne(req.body);
+      res.send(result);
+    });
+
+    app.get("/report", verifyJwt, verifyAdmin, async (req, res) => {
+      const query = {};
+      const result = await productReportCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    app.delete("/report/:id", verifyJwt, verifyAdmin, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: ObjectId(id) };
+      const filter = { _id: id };
+      const result = await productReportCollection.deleteOne(filter);
+      const response = await watchesCollection.deleteOne(query);
+      res.send(response);
     });
 
     // categories route and homepage route
@@ -156,6 +194,7 @@ async function run() {
 
     app.post("/products", verifyJwt, verifySeller, async (req, res) => {
       const product = req.body;
+      const pushToSellerCollection = await sellerCollection.insertOne(product);
       const result = await watchesCollection.insertOne(product);
       res.send(result);
     });
@@ -175,7 +214,8 @@ async function run() {
     app.get("/products", verifyJwt, verifySeller, async (req, res) => {
       const email = req.query.email;
       const query = { sellerEmail: email };
-      const result = await watchesCollection.find(query).toArray();
+      //ekhane change korsi seller colletion
+      const result = await sellerCollection.find(query).toArray();
       res.send(result);
     });
 
@@ -188,18 +228,22 @@ async function run() {
           advertise: true,
         },
       };
-      const result = await watchesCollection.updateOne(
+      // egla porer
+      const response = await sellerCollection.updateOne(
         query,
         updateDoc,
         options
       );
-      res.send(result);
+      res.send(response);
     });
 
     app.delete("/products/:id", verifyJwt, verifySeller, async (req, res) => {
       const id = req.params.id;
       const query = { _id: ObjectId(id) };
-      const result = await watchesCollection.deleteOne(query);
+      const filter = { _id: id };
+      const deleteFromAdvertise = await advertisedProduct.deleteOne(filter);
+      const response = await watchesCollection.deleteOne(query);
+      const result = await sellerCollection.deleteOne(query);
       res.send(result);
     });
 
@@ -247,7 +291,7 @@ async function run() {
         updateDoc,
         options
       );
-      const result = await watchesCollection.updateOne(
+      const result = await sellerCollection.updateOne(
         query,
         updateDoc,
         options
