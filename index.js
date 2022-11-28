@@ -334,6 +334,12 @@ async function run() {
           isSellerVerified: true,
         },
       };
+      const filter = { sellerEmail: req.body.email };
+      const response = await watchesCollection.updateMany(
+        filter,
+        updateDoc,
+        options
+      );
       const result = await usersCollection.updateOne(query, updateDoc, options);
       res.send(result);
     });
